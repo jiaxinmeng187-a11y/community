@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赛博居委会调度中枢</title>
+<style>
+  :root {
+    --red: #e74c3c;
+    --red-glow: #ff4444;
+    --yellow: #f1c40f;
+    --yellow-glow: #ffe066;
+    --green: #2ecc71;
+    --green-glow: #54d98c;
+    --bg: #0d0d14;
+    --surface: #1a1a25;
+    --surface2: #222233;
+    --text: #e0e0e0;
+    --text-dim: #999;
+    --border: #2a2a3a;
+    --header-h: 56px;
+    --radius: 10px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ── Layout ── */
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ── Header ── */
+  .header {
+    height: var(--header-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    z-index: 10;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .header-logo .icon-hex {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--red), var(--yellow));
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .header-stats {
+    margin-left: auto;
+    display: flex;
+    gap: 28px;
+    font-size: 13px;
+  }
+  .header-stat { text-align: center; }
+  .header-stat .val { font-size: 22px; font-weight: 700; }
+  .header-stat .val.red { color: var(--red-glow); }
+  .header-stat .val.yellow { color: var(--yellow-glow); }
+  .header-stat .val.green { color: var(--green-glow); }
+  .header-stat .lbl { color: var(--text-dim); font-size: 11px; margin-top: 1px; }
+
+  /* ── Main ── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── 3D Canvas ── */
+  .canvas-wrap {
+    flex: 1;
+    position: relative;
+    cursor: grab;
+    background: radial-gradient(ellipse at center, #1c1c30 0%, #0d0d14 70%);
+  }
+  .canvas-wrap:active { cursor: grabbing; }
+  .canvas-wrap canvas { display: block; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 380px;
+    background: rgba(22,22,35,0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    z-index: 5;
+    transition: width 0.3s;
+  }
+  .sidebar-head {
+    padding: 18px 20px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-head h3 {
+    font-size: 16px;
+    font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sidebar-head h3 .count-badge {
+    background: var(--red);
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+  .filter-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .filter-btn {
+    padding: 5px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+  .filter-btn:hover { border-color: #555; color: #ccc; }
+  .filter-btn.active { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
+
+  .ticket-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ticket-list::-webkit-scrollbar { width: 4px; }
+  .ticket-list::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+  .ticket-card {
+    background: var(--surface2);
+    border-radius: var(--radius);
+    padding: 14px;
+    border-left: 4px solid transparent;
+    cursor: pointer;
+    transition: all 0.25s;
+    animation: slideIn 0.35s ease-out;
+    position: relative;
+    overflow: hidden;
+  }
+  .ticket-card:hover {
+    background: #2a2a3e;
+    transform: translateX(-3px);
+  }
+  .ticket-card.sev-high { border-left-color: var(--red); }
+  .ticket-card.sev-medium { border-left-color: var(--yellow); }
+  .ticket-card.sev-low { border-left-color: var(--green); }
+  .ticket-card .ticket-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .ticket-card .ticket-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .badge-high { background: rgba(231,76,60,0.2); color: var(--red-glow); }
+  .badge-medium { background: rgba(241,196,15,0.2); color: var(--yellow-glow); }
+  .badge-low { background: rgba(46,204,113,0.2); color: var(--green-glow); }
+  .ticket-card .ticket-loc {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ccc;
+  }
+  .ticket-card .ticket-summary {
+    font-size: 13px;
+    color: #aaa;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .ticket-card .ticket-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .ticket-card .ticket-time {
+    font-size: 11px;
+    color: #666;
+  }
+  .ticket-card .dispatch-btn {
+    background: linear-gradient(135deg, var(--red), var(--yellow));
+    border: none;
+    color: #fff;
+    padding: 5px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .dispatch-btn:hover { transform: scale(1.04); box-shadow: 0 0 12px rgba(231,76,60,0.4); }
+  .dispatch-btn:active { transform: scale(0.96); }
+  .dispatch-btn.dispatched {
+    background: var(--green);
+    pointer-events: none;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #555;
+    font-size: 14px;
+  }
+
+  /* ── Floating Legend ── */
+  .legend {
+    position: absolute;
+    bottom: 24px;
+    left: 24px;
+    background: rgba(22,22,35,0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    animation: legendPulse 1.6s ease-in-out infinite;
+  }
+  .legend-dot.high { background: var(--red); box-shadow: 0 0 8px var(--red-glow); animation-duration: 0.8s; }
+  .legend-dot.medium { background: var(--yellow); box-shadow: 0 0 8px var(--yellow-glow); animation-duration: 1.4s; }
+  .legend-dot.low { background: var(--green); box-shadow: 0 0 8px var(--green-glow); animation-duration: 2.0s; }
+  .legend-dot.normal { background: #555; box-shadow: none; animation: none; }
+
+  /* ── Tooltip ── */
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(0,0,0,0.88);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 20;
+    border: 1px solid rgba(255,255,255,0.15);
+    transform: translate(-50%, -120%);
+  }
+  .tooltip.show { opacity: 1; }
+  .tooltip .tt-name { font-weight: 700; margin-bottom: 2px; }
+  .tooltip .tt-count { font-size: 11px; color: #aaa; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes legendPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .sidebar { width: 300px; }
+    .header-stats { gap: 16px; }
+    .header-stat .val { font-size: 18px; }
+  }
+  @media (max-width: 640px) {
+    .sidebar { position: absolute; right: 0; top: 0; height: 100%; width: 280px; transform: translateX(100%); transition: transform 0.3s; }
+    .sidebar.open { transform: translateX(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-logo">
+      <div class="icon-hex">🏘</div>
+      <span>赛博居委会调度中枢</span>
+    </div>
+    <div class="header-stats">
+      <div class="header-stat"><div class="val red" id="statHigh">2</div><div class="lbl">紧急</div></div>
+      <div class="header-stat"><div class="val yellow" id="statMedium">2</div><div class="lbl">中等</div></div>
+      <div class="header-stat"><div class="val green" id="statLow">2</div><div class="lbl">一般</div></div>
+      <div class="header-stat"><div class="val" style="color:#ccc" id="statTotal">6</div><div class="lbl">总计</div></div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="canvas-wrap" id="canvasWrap">
+      <div class="tooltip" id="tooltip"><div class="tt-name"></div><div class="tt-count"></div></div>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-dot high"></span> 高优先级 — 紧急</div>
+        <div class="legend-item"><span class="legend-dot medium"></span> 中优先级 — 中等</div>
+        <div class="legend-item"><span class="legend-dot low"></span> 低优先级 — 一般</div>
+        <div class="legend-item"><span class="legend-dot normal"></span> 正常 — 无待处理</div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <h3>📋 待办工单 <span class="count-badge" id="ticketCount">6</span></h3>
+        <div class="filter-row">
+          <button class="filter-btn active" data-filter="all">全部</button>
+          <button class="filter-btn" data-filter="high">🔴 紧急</button>
+          <button class="filter-btn" data-filter="medium">🟡 中等</button>
+          <button class="filter-btn" data-filter="low">🟢 一般</button>
+        </div>
+      </div>
+      <div class="ticket-list" id="ticketList"></div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ════════════════════════════════════════
+//  MOCK DATA
+// ════════════════════════════════════════
+const buildingsDef = [
+  { id: 1, name: '1栋', x: -7, z: -5.5, w: 2.8, d: 2.4, h: 6.5 },
+  { id: 2, name: '2栋', x: 0,  z: -5.5, w: 2.4, d: 2.8, h: 5.2 },
+  { id: 3, name: '3栋', x: 7,  z: -5.5, w: 3.0, d: 2.2, h: 4.5 },
+  { id: 4, name: '4栋', x: -7, z: 5.5,  w: 2.5, d: 2.5, h: 7.2 },
+  { id: 5, name: '5栋', x: 0,  z: 5.5,  w: 3.2, d: 3.0, h: 5.8 },
+  { id: 6, name: '6栋', x: 7,  z: 5.5,  w: 2.2, d: 2.6, h: 4.8 },
+];
+
+let tickets = [
+  { id: 'T001', buildingId: 4, door: '304', severity: 'high',   summary: '水管爆裂，楼道积水严重，已蔓延至电梯井', time: '3分钟前' },
+  { id: 'T002', buildingId: 1, door: '201', severity: 'high',   summary: '电梯运行异响，居民反映有卡顿现象，存在安全隐患', time: '12分钟前' },
+  { id: 'T003', buildingId: 2, door: '102', severity: 'medium', summary: '楼道照明灯不亮已持续两天，夜间出行不便', time: '15分钟前' },
+  { id: 'T004', buildingId: 6, door: '501', severity: 'medium', summary: '垃圾堆放三天未及时清理，气味影响周围住户', time: '1小时前' },
+  { id: 'T005', buildingId: 5, door: '603', severity: 'low',    summary: '外墙墙面起皮脱落，影响美观，建议修缮', time: '2小时前' },
+  { id: 'T006', buildingId: 3, door: '401', severity: 'low',    summary: '单元门门禁按键失灵，访客需按门铃通知', time: '45分钟前' },
+];
+
+// ════════════════════════════════════════
+//  THREE.JS SETUP
+// ════════════════════════════════════════
+const wrap = document.getElementById('canvasWrap');
+const tooltipEl = document.getElementById('tooltip');
+
+// Scene
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0d0d18, 0.0018);
+
+// Renderer (WebGL)
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+wrap.appendChild(renderer.domElement);
+
+// CSS2D Renderer (labels)
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(wrap.clientWidth, wrap.clientHeight);
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.top = '0';
+labelRenderer.domElement.style.pointerEvents = 'none';
+wrap.appendChild(labelRenderer.domElement);
+
+// Camera
+const camera = new THREE.PerspectiveCamera(48, wrap.clientWidth / wrap.clientHeight, 0.5, 80);
+camera.position.set(12, 11, 15);
+camera.lookAt(0, 1.5, 0);
+
+// OrbitControls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.8, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 8;
+controls.maxDistance = 30;
+controls.maxPolarAngle = Math.PI / 2 + 0.4;
+controls.minPolarAngle = 0.3;
+controls.update();
+
+// Lights
+const ambientLight = new THREE.AmbientLight(0x334466, 1.5);
+scene.add(ambientLight);
+
+const sunLight = new THREE.DirectionalLight(0xffffff, 3.5);
+sunLight.position.set(15, 20, 5);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.width = 2048;
+sunLight.shadow.mapSize.height = 2048;
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 60;
+sunLight.shadow.camera.left = -20;
+sunLight.shadow.camera.right = 20;
+sunLight.shadow.camera.top = 20;
+sunLight.shadow.camera.bottom = -20;
+sunLight.shadow.bias = -0.0004;
+scene.add(sunLight);
+
+const fillLight = new THREE.DirectionalLight(0x8899cc, 1.2);
+fillLight.position.set(-10, 3, -5);
+scene.add(fillLight);
+
+// ════════════════════════════════════════
+//  GROUND (terrain with subtle undulation)
+// ════════════════════════════════════════
+const groundGeo = new THREE.PlaneGeometry(30, 30, 40, 40);
+const posArr = groundGeo.attributes.position;
+for (let i = 0; i < posArr.count; i++) {
+  const x = posArr.getX(i);
+  const y = posArr.getY(i);
+  const z = Math.sin(x * 0.35) * Math.cos(y * 0.35) * 0.25
+          + Math.sin(x * 0.7 + y * 0.5) * 0.12
+          + Math.cos(x * 0.5 - y * 0.7) * 0.1;
+  posArr.setZ(i, z);
+}
+groundGeo.computeVertexNormals();
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x3d5a3d,
+  roughness: 0.95,
+  metalness: 0.0,
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.15;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ════════════════════════════════════════
+//  ROADS
+// ════════════════════════════════════════
+function createRoad(x, z, w, d) {
+  const geo = new THREE.PlaneGeometry(w, d);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x3a3a3f, roughness: 0.85, metalness: 0.05 });
+  const road = new THREE.Mesh(geo, mat);
+  road.rotation.x = -Math.PI / 2;
+  road.position.set(x, 0.03, z);
+  road.receiveShadow = true;
+  scene.add(road);
+}
+createRoad(0, 0, 22, 2.5);
+createRoad(0, 0, 2.5, 22);
+createRoad(0, -11.5, 26, 1.8);
+createRoad(0, 11.5, 26, 1.8);
+createRoad(-11.5, 0, 1.8, 26);
+createRoad(11.5, 0, 1.8, 26);
+
+// Road lane marking
+(function(){
+  const geo = new THREE.PlaneGeometry(18, 0.12);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.6 });
+  const mark = new THREE.Mesh(geo, mat);
+  mark.rotation.x = -Math.PI / 2;
+  mark.position.set(0, 0.04, 0);
+  scene.add(mark);
+})();
+
+// ════════════════════════════════════════
+//  BUILDING PLATFORMS
+// ════════════════════════════════════════
+function createPlatform(x, z, w, d) {
+  const geo = new THREE.BoxGeometry(w + 0.4, 0.15, d + 0.4);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.7 });
+  const plat = new THREE.Mesh(geo, mat);
+  plat.position.set(x, 0.08, z);
+  plat.receiveShadow = true;
+  plat.castShadow = true;
+  scene.add(plat);
+}
+
+// ════════════════════════════════════════
+//  BUILDINGS — Red / Yellow / Green
+// ════════════════════════════════════════
+const buildingObjects = [];
+
+const ALERT_COLORS = {
+  high:   { emissive: '#e74c3c', hex: 0xe74c3c, speed: 4.0, amp: 0.45, base: 0.25, label: '紧急' },
+  medium: { emissive: '#f1c40f', hex: 0xf1c40f, speed: 2.5, amp: 0.3,  base: 0.15, label: '中等' },
+  low:    { emissive: '#2ecc71', hex: 0x2ecc71, speed: 1.6, amp: 0.2,  base: 0.08, label: '一般' },
+  normal: { emissive: '#000000', hex: 0x000000, speed: 0,   amp: 0,    base: 0,    label: '正常' },
+};
+
+function getBuildingAlertLevel(buildingId) {
+  const bTickets = tickets.filter(t => t.buildingId === buildingId);
+  if (bTickets.length === 0) return 'normal';
+  if (bTickets.some(t => t.severity === 'high')) return 'high';
+  if (bTickets.some(t => t.severity === 'medium')) return 'medium';
+  return 'low';
+}
+
+function createBuilding(def) {
+  const alertLevel = getBuildingAlertLevel(def.id);
+  const alertCfg = ALERT_COLORS[alertLevel];
+
+  // Main body
+  const bodyGeo = new THREE.BoxGeometry(def.w, def.h, def.d);
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0xe8e0d5,
+    roughness: 0.55,
+    metalness: 0.08,
+    emissive: new THREE.Color(alertCfg.hex),
+    emissiveIntensity: alertCfg.base,
+  });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.set(def.x, def.h / 2 + 0.15, def.z);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  body.userData = { buildingId: def.id, isBuilding: true };
+  scene.add(body);
+
+  // Roof accent
+  const roofGeo = new THREE.BoxGeometry(def.w + 0.15, 0.25, def.d + 0.15);
+  const roofMat = new THREE.MeshStandardMaterial({
+    color: 0x4a4a55,
+    roughness: 0.6,
+    metalness: 0.2,
+    emissive: new THREE.Color(alertCfg.hex),
+    emissiveIntensity: alertCfg.base * 0.5,
+  });
+  const roof = new THREE.Mesh(roofGeo, roofMat);
+  roof.position.set(def.x, def.h + 0.28, def.z);
+  roof.castShadow = true;
+  roof.userData = { buildingId: def.id, isBuilding: true };
+  scene.add(roof);
+
+  // Window strips
+  const stripCount = Math.floor(def.h / 1.2);
+  for (let i = 0; i < stripCount; i++) {
+    const stripGeo = new THREE.BoxGeometry(def.w - 0.3, 0.08, 0.06);
+    const stripMat = new THREE.MeshStandardMaterial({
+      color: 0x888899,
+      roughness: 0.4,
+      metalness: 0.5,
+      emissive: new THREE.Color(alertCfg.hex),
+      emissiveIntensity: alertCfg.base * 0.3,
+    });
+    const y = 0.15 + 1.0 + i * 1.2;
+
+    const stripF = new THREE.Mesh(stripGeo, stripMat);
+    stripF.position.set(def.x, y, def.z + def.d / 2 + 0.02);
+    stripF.userData = { buildingId: def.id, isBuilding: true };
+    scene.add(stripF);
+
+    const stripB = new THREE.Mesh(stripGeo.clone(), stripMat.clone());
+    stripB.position.set(def.x, y, def.z - def.d / 2 - 0.02);
+    stripB.userData = { buildingId: def.id, isBuilding: true };
+    scene.add(stripB);
+  }
+
+  // CSS2D Label
+  const labelDiv = document.createElement('div');
+  labelDiv.textContent = def.name;
+  labelDiv.style.cssText = `
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    background: rgba(0,0,0,0.65);
+    padding: 3px 10px;
+    border-radius: 10px;
+    white-space: nowrap;
+    letter-spacing: 1px;
+    pointer-events: none;
+    text-shadow: 0 0 6px rgba(0,0,0,0.5);
+  `;
+  const label = new CSS2DObject(labelDiv);
+  label.position.set(def.x, def.h + 0.7, def.z);
+  scene.add(label);
+
+  // Platform
+  createPlatform(def.x, def.z, def.w, def.d);
+
+  const obj = {
+    id: def.id,
+    name: def.name,
+    bodyMesh: body,
+    roofMesh: roof,
+    labelObj: label,
+    alertLevel,
+    x: def.x,
+    z: def.z,
+  };
+  buildingObjects.push(obj);
+  return obj;
+}
+
+buildingsDef.forEach(d => createBuilding(d));
+
+// ════════════════════════════════════════
+//  TREES
+// ════════════════════════════════════════
+function createTree(x, z) {
+  const group = new THREE.Group();
+  const trunkGeo = new THREE.CylinderGeometry(0.12, 0.15, 1.2, 8);
+  const trunk = new THREE.Mesh(trunkGeo, new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.9 }));
+  trunk.position.y = 0.6;
+  trunk.castShadow = true;
+  group.add(trunk);
+
+  const leavesMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color().setHSL(0.25 + Math.random() * 0.1, 0.6, 0.25 + Math.random() * 0.15),
+    roughness: 0.85,
+  });
+  const leaves = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.6, 10, 4), leavesMat);
+  leaves.position.y = 1.5;
+  leaves.castShadow = true;
+  leaves.receiveShadow = true;
+  group.add(leaves);
+
+  const leaves2 = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.1, 8, 4), leavesMat.clone());
+  leaves2.position.y = 2.1;
+  leaves2.castShadow = true;
+  group.add(leaves2);
+
+  group.position.set(x, 0, z);
+  scene.add(group);
+}
+
+const treePositions = [
+  [-10,-9],[-8.5,-8.5],[-5,-8],[5,-8.5],[8.5,-8],[10,-9],
+  [-10,9],[-8,8.5],[5,8],[8.5,8.5],[10,9],
+  [-10,-3],[-10,3],[10,-3],[10,3],
+  [-9,0],[9,0],[0,-9],[0,9],
+  [-3.5,-3.5],[3.5,-3.5],[-3.5,3.5],[3.5,3.5],
+  [-5.5,-2],[5.5,-2],[-5.5,2],[5.5,2],
+];
+treePositions.forEach(([x, z]) => {
+  if (Math.abs(x) < 3 && Math.abs(z) < 3) return;
+  createTree(x, z);
+});
+
+// ════════════════════════════════════════
+//  ALERT PARTICLES
+// ════════════════════════════════════════
+const particles = [];
+
+function spawnParticle(buildingObj) {
+  const cfg = ALERT_COLORS[buildingObj.alertLevel];
+  if (!cfg || cfg.speed === 0) return;
+  const geo = new THREE.SphereGeometry(0.08, 6, 6);
+  const mat = new THREE.MeshBasicMaterial({ color: cfg.hex, transparent: true, opacity: 0.9 });
+  const particle = new THREE.Mesh(geo, mat);
+  const bDef = buildingsDef.find(b => b.id === buildingObj.id);
+  particle.position.set(
+    buildingObj.x + (Math.random() - 0.5) * 2,
+    buildingObj.bodyMesh.position.y + bDef.h / 2 + 0.5,
+    buildingObj.z + (Math.random() - 0.5) * 2,
+  );
+  particle.userData = {
+    life: 1.0,
+    decay: 0.008 + Math.random() * 0.015,
+    vy: 0.015 + Math.random() * 0.025,
+  };
+  scene.add(particle);
+  particles.push(particle);
+}
+
+// ════════════════════════════════════════
+//  RAYCASTER (hover + click)
+// ════════════════════════════════════════
+const raycaster = new THREE.Raycaster();
+raycaster.far = 30;
+const mouse = new THREE.Vector2();
+let hoveredBuilding = null;
+
+function getIntersections(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  return raycaster.intersectObjects(scene.children, true).filter(i => i.object.userData?.isBuilding);
+}
+
+window.addEventListener('mousemove', (event) => {
+  const hits = getIntersections(event);
+  if (hits.length > 0) {
+    const buildingId = hits[0].object.userData.buildingId;
+    const bObj = buildingObjects.find(b => b.id === buildingId);
+    if (hoveredBuilding !== bObj) {
+      hoveredBuilding = bObj;
+      document.body.style.cursor = 'pointer';
+      const bTickets = tickets.filter(t => t.buildingId === buildingId);
+      const sevLabel = ALERT_COLORS[bObj.alertLevel].label;
+      tooltipEl.querySelector('.tt-name').textContent = `${bObj.name} — ${sevLabel}`;
+      tooltipEl.querySelector('.tt-count').textContent = bTickets.length > 0 ? `${bTickets.length} 个待处理工单` : '暂无工单';
+      tooltipEl.classList.add('show');
+      tooltipEl.style.left = event.clientX - wrap.getBoundingClientRect().left + 'px';
+      tooltipEl.style.top = event.clientY - wrap.getBoundingClientRect().top + 'px';
+    }
+  } else {
+    if (hoveredBuilding) {
+      hoveredBuilding = null;
+      document.body.style.cursor = '';
+      tooltipEl.classList.remove('show');
+    }
+  }
+});
+
+window.addEventListener('click', (event) => {
+  if (event.target.closest('.sidebar') || event.target.closest('.header') || event.target.closest('.legend')) return;
+  const hits = getIntersections(event);
+  if (hits.length > 0) {
+    const buildingId = hits[0].object.userData.buildingId;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.filter-btn[data-filter="all"]').classList.add('active');
+    currentFilter = 'all';
+    renderTicketList(buildingId);
+    currentHighlightBuilding = buildingId;
+  } else {
+    currentHighlightBuilding = null;
+    renderTicketList();
+  }
+});
+
+let currentFilter = 'all';
+let currentHighlightBuilding = null;
+
+// ════════════════════════════════════════
+//  SIDEBAR TICKET RENDERING
+// ════════════════════════════════════════
+const ticketListEl = document.getElementById('ticketList');
+const ticketCountEl = document.getElementById('ticketCount');
+const statHighEl = document.getElementById('statHigh');
+const statMediumEl = document.getElementById('statMedium');
+const statLowEl = document.getElementById('statLow');
+const statTotalEl = document.getElementById('statTotal');
+
+function updateStats() {
+  const all = tickets.length;
+  statHighEl.textContent = tickets.filter(t => t.severity === 'high').length;
+  statMediumEl.textContent = tickets.filter(t => t.severity === 'medium').length;
+  statLowEl.textContent = tickets.filter(t => t.severity === 'low').length;
+  statTotalEl.textContent = all;
+  ticketCountEl.textContent = all;
+}
+
+function renderTicketList(highlightBuildingId = null) {
+  let filtered = [...tickets];
+  if (currentFilter !== 'all') {
+    filtered = filtered.filter(t => t.severity === currentFilter);
+  }
+  if (highlightBuildingId) {
+    filtered = filtered.filter(t => t.buildingId === highlightBuildingId);
+  }
+
+  if (filtered.length === 0) {
+    ticketListEl.innerHTML = '<div class="empty-state">✨ 暂无待处理工单</div>';
+    updateStats();
+    return;
+  }
+
+  ticketListEl.innerHTML = filtered.map(t => {
+    const bDef = buildingsDef.find(b => b.id === t.buildingId);
+    const sevClass = t.severity === 'high' ? 'sev-high' : t.severity === 'medium' ? 'sev-medium' : 'sev-low';
+    const badgeHtml = t.severity === 'high'
+      ? '<span class="ticket-badge badge-high">紧急</span>'
+      : t.severity === 'medium'
+        ? '<span class="ticket-badge badge-medium">中等</span>'
+        : '<span class="ticket-badge badge-low">一般</span>';
+    return `
+      <div class="ticket-card ${sevClass}" data-id="${t.id}">
+        <div class="ticket-top">
+          <span class="ticket-loc">${bDef.name} · ${t.door}</span>
+          ${badgeHtml}
+        </div>
+        <div class="ticket-summary">${t.summary}</div>
+        <div class="ticket-bottom">
+          <span class="ticket-time">🕐 ${t.time}</span>
+          <button class="dispatch-btn" data-id="${t.id}">派单 →</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  ticketListEl.querySelectorAll('.dispatch-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dispatchTicket(btn.dataset.id);
+    });
+  });
+
+  ticketListEl.querySelectorAll('.ticket-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const t = tickets.find(tk => tk.id === card.dataset.id);
+      if (t) {
+        const bDef = buildingsDef.find(b => b.id === t.buildingId);
+        flyCameraTo(bDef.x, bDef.h / 2 + 2, bDef.z + 6);
+      }
+    });
+  });
+
+  updateStats();
+}
+
+function dispatchTicket(ticketId) {
+  const t = tickets.find(tk => tk.id === ticketId);
+  if (!t) return;
+  tickets = tickets.filter(tk => tk.id !== ticketId);
+
+  const bObj = buildingObjects.find(b => b.id === t.buildingId);
+  if (bObj) {
+    bObj.alertLevel = getBuildingAlertLevel(t.buildingId);
+    updateBuildingAppearance(bObj);
+  }
+  renderTicketList(currentHighlightBuilding);
+}
+
+function updateBuildingAppearance(bObj) {
+  const cfg = ALERT_COLORS[bObj.alertLevel];
+  bObj.bodyMesh.material.emissive.set(cfg.hex);
+  bObj.bodyMesh.material.emissiveIntensity = cfg.base;
+  bObj.roofMesh.material.emissive.set(cfg.hex);
+  bObj.roofMesh.material.emissiveIntensity = cfg.base * 0.5;
+}
+
+function flyCameraTo(tx, ty, tz) {
+  const start = { x: controls.target.x, y: controls.target.y, z: controls.target.z };
+  const end = { x: tx, y: ty, z: tz };
+  const startTime = performance.now();
+  const duration = 800;
+  function anim(now) {
+    const elapsed = now - startTime;
+    const p = Math.min(elapsed / duration, 1.0);
+    const ease = p < 0.5 ? 2 * p * p : -1 + (4 - 2 * p) * p;
+    controls.target.set(
+      start.x + (end.x - start.x) * ease,
+      start.y + (end.y - start.y) * ease,
+      start.z + (end.z - start.z) * ease,
+    );
+    if (p < 1) requestAnimationFrame(anim);
+  }
+  requestAnimationFrame(anim);
+}
+
+// ════════════════════════════════════════
+//  FILTER BUTTONS
+// ════════════════════════════════════════
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    currentHighlightBuilding = null;
+    renderTicketList();
+  });
+});
+
+// ════════════════════════════════════════
+//  ANIMATION LOOP
+// ════════════════════════════════════════
+const clock = new THREE.Clock();
+let particleSpawnTimer = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.1);
+  const time = performance.now() * 0.001;
+  controls.update();
+
+  // Breathing effect
+  buildingObjects.forEach(bObj => {
+    const cfg = ALERT_COLORS[bObj.alertLevel];
+    if (cfg.speed > 0) {
+      const intensity = cfg.base + cfg.amp * (0.5 + 0.5 * Math.sin(time * cfg.speed + bObj.id));
+      bObj.bodyMesh.material.emissiveIntensity = intensity;
+      bObj.roofMesh.material.emissiveIntensity = intensity * 0.5;
+      scene.children.forEach(child => {
+        if (child.userData?.buildingId === bObj.id && child.material?.emissiveIntensity !== undefined
+            && child !== bObj.bodyMesh && child !== bObj.roofMesh) {
+          child.material.emissiveIntensity = intensity * 0.3;
+        }
+      });
+    }
+  });
+
+  // Spawn particles
+  particleSpawnTimer += dt;
+  if (particleSpawnTimer > 0.15) {
+    particleSpawnTimer = 0;
+    buildingObjects.forEach(bObj => {
+      if (bObj.alertLevel !== 'normal' && Math.random() < 0.5) {
+        spawnParticle(bObj);
+      }
+    });
+  }
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.userData.life -= p.userData.decay;
+    p.material.opacity = p.userData.life;
+    p.position.y += p.userData.vy;
+    if (p.userData.life <= 0) {
+      scene.remove(p);
+      p.geometry.dispose();
+      p.material.dispose();
+      particles.splice(i, 1);
+    }
+  }
+
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+
+// ════════════════════════════════════════
+//  RESIZE
+// ════════════════════════════════════════
+window.addEventListener('resize', () => {
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+});
+
+// ════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════
+renderTicketList();
+animate();
+
+console.log('🏘 赛博居委会调度中枢 — 3D 空间调度舱已就绪');
+console.log('  🖱 鼠标拖拽旋转 | 滚轮缩放 | 右键平移');
+console.log('  🏠 悬浮建筑查看详情 | 点击建筑筛选工单 | 点击派单按钮处理');
+</script>
+</body>
+</html>

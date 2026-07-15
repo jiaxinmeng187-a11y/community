@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赛博居委会调度中枢 — 创意提案</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #1a1a1a;
+            --surface: #252525;
+            --border: #333;
+            --text: #f5f0eb;
+            --text-secondary: #b0a89e;
+            --red: #e74c3c;
+            --orange: #f39c12;
+            --yellow: #f1c40f;
+            --gradient-primary: linear-gradient(135deg, #e74c3c, #f39c12, #f1c40f);
+            --gradient-card: linear-gradient(180deg, rgba(231,76,60,0.08), rgba(241,196,15,0.04));
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* ===== Floating particles ===== */
+        .particles {
+            position: fixed; inset: 0; pointer-events: none; z-index: 0;
+        }
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            animation: floatUp 8s infinite ease-in;
+            opacity: 0;
+        }
+        @keyframes floatUp {
+            0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+            10%  { opacity: 0.5; }
+            90%  { opacity: 0.3; }
+            100% { transform: translateY(-10vh) scale(1.2); opacity: 0; }
+        }
+
+        /* ===== Container ===== */
+        .container {
+            position: relative; z-index: 1;
+            max-width: 860px; margin: 0 auto; padding: 20px 20px 60px;
+        }
+
+        /* ===== Hero ===== */
+        .hero {
+            text-align: center;
+            padding: 50px 0 40px;
+            position: relative;
+        }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 7px 18px;
+            border-radius: 24px;
+            font-size: 13px; font-weight: 700;
+            color: #f39c12;
+            background: rgba(243,156,18,0.1);
+            border: 1px solid rgba(243,156,18,0.3);
+            margin-bottom: 20px;
+            letter-spacing: 0.5px;
+        }
+        .hero-badge::before {
+            content: '⚡'; font-size: 14px;
+        }
+        .hero h1 {
+            font-size: clamp(30px, 5.5vw, 48px);
+            font-weight: 900;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 16px;
+            letter-spacing: 2px;
+        }
+        .hero .tagline {
+            font-size: 16px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 28px;
+            line-height: 1.8;
+        }
+
+        /* ===== CTA Buttons ===== */
+        .btn-row {
+            display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-size: 14px; font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            border: none;
+            transition: all 0.25s;
+            position: relative; overflow: hidden;
+        }
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: #1a1a1a;
+            box-shadow: 0 4px 20px rgba(243,156,18,0.3);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 28px rgba(243,156,18,0.45);
+        }
+        .btn-primary:active {
+            transform: scale(0.97);
+        }
+        .btn-outline {
+            background: transparent;
+            color: #f39c12;
+            border: 2px solid rgba(243,156,18,0.4);
+        }
+        .btn-outline:hover {
+            border-color: #f39c12;
+            background: rgba(243,156,18,0.08);
+        }
+        .btn-ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.4);
+            transform: scale(0);
+            animation: ripple 0.6s ease-out;
+            pointer-events: none;
+        }
+        @keyframes ripple {
+            to { transform: scale(4); opacity: 0; }
+        }
+
+        /* ===== Section ===== */
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 36px;
+            margin-bottom: 24px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            position: relative; overflow: hidden;
+        }
+        .section::before {
+            content: '';
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 3px;
+            background: var(--gradient-primary);
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .section:hover::before { opacity: 1; }
+        .section:hover {
+            border-color: rgba(243,156,18,0.25);
+            box-shadow: 0 4px 30px rgba(231,76,60,0.06);
+        }
+        .section h2 {
+            font-size: 22px; font-weight: 800; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .section h2 .bar {
+            display: inline-block;
+            width: 4px; height: 24px; border-radius: 2px;
+            background: var(--gradient-primary);
+        }
+        .section h3 {
+            font-size: 14px; font-weight: 700;
+            color: #f39c12; margin: 22px 0 10px;
+            letter-spacing: 0.5px;
+        }
+        .section h3:first-of-type { margin-top: 0; }
+        .section p {
+            color: var(--text-secondary); font-size: 15px; margin-bottom: 12px;
+        }
+        .section p:last-child { margin-bottom: 0; }
+        .highlight, .hl-r { color: #e74c3c; font-weight: 700; }
+        .hl-o { color: #f39c12; font-weight: 700; }
+        .hl-y { color: #f1c40f; font-weight: 700; }
+
+        /* ===== Card grid ===== */
+        .card-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px;
+        }
+        @media (max-width: 600px) { .card-row { grid-template-columns: 1fr; } }
+        .card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative; overflow: hidden;
+        }
+        .card:hover {
+            border-color: rgba(243,156,18,0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(231,76,60,0.08);
+        }
+        .card .emoji { font-size: 36px; margin-bottom: 10px; }
+        .card h4 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+        .card p { font-size: 13px; color: var(--text-secondary); }
+        .card .card-badge {
+            display: inline-block;
+            padding: 3px 10px; border-radius: 10px;
+            font-size: 11px; font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .card-badge.c { background: rgba(231,76,60,0.15); color: #e74c3c; }
+        .card-badge.b { background: rgba(243,156,18,0.15); color: #f39c12; }
+
+        /* ===== Pain list ===== */
+        .pain-list { list-style: none; margin-top: 8px; }
+        .pain-list li {
+            position: relative;
+            padding: 12px 16px 12px 42px;
+            margin-bottom: 10px;
+            background: var(--bg);
+            border-radius: 8px;
+            font-size: 14px; color: var(--text-secondary);
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .pain-list li:hover { border-left-color: #e74c3c; }
+        .pain-list li::before {
+            content: '✕';
+            position: absolute; left: 14px; top: 13px;
+            color: #e74c3c; font-weight: 700; font-size: 14px;
+        }
+
+        /* ===== Value cards ===== */
+        .value-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;
+        }
+        @media (max-width: 600px) { .value-grid { grid-template-columns: 1fr; } }
+        .value-card {
+            background: var(--gradient-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .value-card:hover {
+            border-color: rgba(243,156,18,0.3);
+            transform: translateY(-2px);
+        }
+        .value-card .v-icon { font-size: 40px; margin-bottom: 10px; }
+        .value-card h4 {
+            font-size: 16px; font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+        .value-card p { font-size: 13px; color: var(--text-secondary); }
+
+        /* ===== Footer ===== */
+        .footer {
+            text-align: center; padding: 32px 0;
+            color: var(--text-secondary); font-size: 13px;
+            border-top: 1px solid var(--border); margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="particles" id="particles"></div>
+
+<main class="container">
+
+    <!-- ========== Hero ========== -->
+    <section class="hero">
+        <span class="hero-badge">TRAE Work 创意产物</span>
+        <h1>赛博居委会调度中枢</h1>
+        <p class="tagline">
+            打造一个以 <strong>3D 空间可视化</strong> 为核心、<strong>多模态 AI 驱动</strong>
+            的社区智能工单调度平台，将居民的情绪宣泄转化为结构化的高效派单，消除基层管理摩擦力。
+        </p>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="scrollToSection('pain')">
+                查看核心痛点 ↓
+            </button>
+            <button class="btn btn-outline" id="btn-more">
+                了解更多
+            </button>
+        </div>
+    </section>
+
+    <!-- ========== 1. 想解决什么问题 ========== -->
+    <section class="section">
+        <h2><span class="bar"></span>想解决什么问题</h2>
+        <p>
+            在城市社区基层治理中，居民报修、投诉等琐碎事务缺乏高效的数字化工具支撑——
+            <span class="highlight">报修流程繁琐、进度不透明、物业调度缺乏全局视角</span>，
+            导致居民焦躁、物业低效、双方信任度持续下降。
+        </p>
+        <p>
+            传统方式下，居民只能打电话或上门登记，物业靠手写工单或 Excel 管理——
+            <span class="highlight">水管爆了和灯泡闪了混在一起排队，真正紧急的问题常常被埋没</span>。
+        </p>
+    </section>
+
+    <!-- ========== 2. 为什么会想到做这个 ========== -->
+    <section class="section">
+        <h2><span class="bar"></span>为什么会想到做这个</h2>
+        <p>
+            灵感来源于一次深夜的切身经历：楼道灯坏了三天没人修，打了两个电话、发了一次业主群消息，
+            最后自己动手换了灯泡。事后在想——
+            <span class="hl-o">如果拍张照片、说句话就能自动上报并实时追踪进度</span>，
+            物业也能像玩模拟城市一样一眼看到"哪栋楼亮了红灯"，该多好。
+        </p>
+        <p>
+            随着多模态 AI（GPT-4o / Claude）和 3D Web 技术（Three.js）的成熟，
+            以极低成本将社区报修流程从"文字列表"升级为<span class="hl-o">"空间可视化调度"</span>的时机已经到来。
+        </p>
+    </section>
+
+    <!-- ========== 3. 大概是什么产品 ========== -->
+    <section class="section">
+        <h2><span class="bar"></span>大概是什么产品</h2>
+        <p style="font-size: 17px; font-weight: 700; color: var(--text);">
+            一个基于网页的 <span class="hl-o">响应式 Web 应用</span>（PC + 移动端通用），
+            AI 自动分类工单 + 3D 小区数字孪生实时调度大屏。
+        </p>
+    </section>
+
+    <!-- ========== 4. 目标用户及痛点 ========== -->
+    <section class="section" id="pain">
+        <h2><span class="bar"></span>目标用户及痛点</h2>
+
+        <h3>面向哪些用户</h3>
+        <div class="card-row">
+            <div class="card">
+                <span class="card-badge c">C 端</span>
+                <div class="emoji">👤</div>
+                <h4>小区居民</h4>
+                <p>住户、租客，年龄跨度大（25-65 岁），用手机或电脑在浏览器中上报问题。</p>
+            </div>
+            <div class="card">
+                <span class="card-badge b">B 端</span>
+                <div class="emoji">🏢</div>
+                <h4>物业 / 居委会</h4>
+                <p>物业客服、维修班组长、居委会网格员，在 PC/大屏/手机上查看和调度工单。</p>
+            </div>
+        </div>
+
+        <h3>在什么场景下使用</h3>
+        <p>
+            <span class="hl-r">居民场景：</span>楼道灯坏了、垃圾堆积、水管漏水、邻居噪音等日常问题——
+            打开浏览器，选楼栋门牌号 → 拍张照 → 说句话 → 提交，全程不到 30 秒。
+        </p>
+        <p>
+            <span class="hl-o">物业场景：</span>日常监控大屏、高峰时段（暴雨/台风后）集中调度，通过 3D 地图
+            一眼定位问题楼栋，按紧急度排序派单，移动端可随时处理。
+        </p>
+
+        <h3>当前痛点</h3>
+        <ul class="pain-list">
+            <li><strong>C 端：</strong>报修流程繁琐（打电话→登记→等待→反复催办）；不知道排队进度，产生焦躁情绪；反馈后石沉大海，对物业失去信任。</li>
+            <li><strong>B 端：</strong>琐碎工单太多，难以分清轻重缓急；缺乏全局空间视角，不知道小区"哪里是问题集中区"；大量无效/重复上报消耗人力。</li>
+        </ul>
+    </section>
+
+    <!-- ========== 5. 价值与意义 ========== -->
+    <section class="section">
+        <h2><span class="bar"></span>价值与意义</h2>
+        <div class="value-grid">
+            <div class="value-card">
+                <div class="v-icon">⚡</div>
+                <h4>效率提升</h4>
+                <p>
+                    AI 自动分类分级，将工单处理从"人肉过滤"变为"智能派发"；
+                    3D 空间调度直观呈现全局状态，派单效率大幅提升，
+                    目标将社区工单平均闭环时长缩短 50% 以上。
+                </p>
+            </div>
+            <div class="value-card">
+                <div class="v-icon">🤝</div>
+                <h4>社会价值</h4>
+                <p>
+                    降低基层治理的数字化门槛，让社区物业从"被动接电话"变为"主动看全局"；
+                    居民获得透明的进度反馈和情绪安抚，重建社区信任，
+                    为城市精细化治理提供可复制的 SaaS 范式。
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== Footer ========== -->
+    <div class="footer">
+        赛博居委会调度中枢 · 敏捷 PRD（MVP 版） · 文档版本 v1.0<br>
+        由 TRAE 生成 · 2026-06-17
+    </div>
+
+</main>
+
+<script>
+// ---------- Floating particles ----------
+(function() {
+    const colors = ['#e74c3c','#f39c12','#f1c40f','#e67e22','#c0392b'];
+    const container = document.getElementById('particles');
+    for (let i = 0; i < 25; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        const size = Math.random() * 4 + 2;
+        p.style.cssText = `
+            left: ${Math.random() * 100}%;
+            width: ${size}px; height: ${size}px;
+            background: ${colors[Math.floor(Math.random() * colors.length)]};
+            animation-delay: ${Math.random() * 8}s;
+            animation-duration: ${Math.random() * 6 + 6}s;
+        `;
+        container.appendChild(p);
+    }
+})();
+
+// ---------- Smooth scroll ----------
+function scrollToSection(id) {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ---------- Button ripple effect ----------
+document.querySelectorAll('.btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        const ripple = document.createElement('span');
+        ripple.className = 'btn-ripple';
+        const rect = this.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        ripple.style.width = ripple.style.height = size + 'px';
+        ripple.style.left = (e.clientX - rect.left - size/2) + 'px';
+        ripple.style.top = (e.clientY - rect.top - size/2) + 'px';
+        this.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+    });
+});
+
+// ---------- "了解更多" toggle ----------
+const btnMore = document.getElementById('btn-more');
+let expanded = false;
+btnMore.addEventListener('click', function() {
+    expanded = !expanded;
+    this.textContent = expanded ? '收起详情' : '了解更多';
+    const sections = document.querySelectorAll('.section');
+    sections.forEach((sec, i) => {
+        if (i >= 1) {
+            sec.style.display = expanded ? 'block' : 'none';
+            if (expanded) {
+                sec.style.animation = 'fadeIn 0.4s ease forwards';
+            }
+        }
+    });
+});
+
+// fade-in keyframe
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+`;
+document.head.appendChild(style);
+</script>
+</body>
+</html>

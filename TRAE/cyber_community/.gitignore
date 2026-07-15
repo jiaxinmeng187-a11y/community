@@ -1,0 +1,28 @@
+# 依赖
+node_modules/
+
+# 本地环境变量（含密码等敏感信息）
+.env
+.env.local
+.env.*.local
+
+# 日志
+*.log
+npm-debug.log*
+
+# 系统/编辑器
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# TypeScript 编译产物
+dist/
+
+# Next.js 构建产物
+.next/
+.next/static/
+
+# 临时文件
+*.tmp
+*.bak
