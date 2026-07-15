@@ -211,7 +211,7 @@ export default function ResidentPage() {
     let imageBase64: string | null = null
     for (let i = msgIndex - 1; i >= 0; i--) {
       if (messages[i].isUser && messages[i].imageBase64) {
-        imageBase64 = messages[i].imageBase64
+        imageBase64 = messages[i].imageBase64 ?? null
         break
       }
     }
