@@ -7,22 +7,43 @@ dotenv.config({ path: path.resolve(__dirname, '..', '.env.local') });
 
 // ---- 连接池 ----
 
-function createPool(): Pool {
-  const url = process.env.DATABASE_URL;
-  if (!url) {
-    throw new Error(
-      'DATABASE_URL 未设置。请在项目根目录的 .env.local 中配置：\n' +
-        '  DATABASE_URL=postgres://postgres:密码@127.0.0.1:5432/cyber_community',
-    );
-  }
-  return new Pool({
-    connectionString: url,
-    max: 10,
-    idleTimeoutMillis: 30_000,
-  });
-}
+let pool: Pool;
 
-const pool = createPool();
+function getPool(): Pool {
+  if (!pool) {
+    const url = process.env.DATABASE_URL;
+    if (!url) {
+      throw new Error(
+        'DATABASE_URL 未设置。请在项目根目录的 .env.local 中配置：\n' +
+          '  DATABASE_URL=postgres://postgres:密码@127.0.0.1:5432/cyber_community',
+      );
+    }
+
+    // 清理 URL 中 node-postgres 不直接支持的 libpq 参数
+    const cleanUrl = url.replace(/[?&]sslmode=\w+/, '').replace(/\?$/, '');
+
+    const isRemote = cleanUrl.includes('supabase') || cleanUrl.includes('.co');
+
+    pool = new Pool({
+      connectionString: cleanUrl,
+      max: 10,
+      idleTimeoutMillis: 30_000,
+      ...(isRemote
+        ? {
+            ssl: {
+              rejectUnauthorized: false,
+            },
+          }
+        : {}),
+    });
+
+    pool.on('error', (err) => {
+      console.error('[queries] 数据库连接池错误:', err.message);
+      pool = null as unknown as Pool;
+    });
+  }
+  return pool;
+}
 
 // ---- 类型定义 ----
 
@@ -107,7 +128,7 @@ function toPendingTicket(row: Record<string, unknown>): PendingTicket {
  */
 export async function getBuildings(communityId: string): Promise<Building[]> {
   try {
-    const result = await pool.query(
+    const result = await getPool().query(
       `SELECT id, community_id, name, pos_x, pos_z, alert_level, created_at
        FROM buildings
        WHERE community_id = $1
@@ -131,7 +152,7 @@ export async function getPendingTickets(
   communityId: string,
 ): Promise<PendingTicket[]> {
   try {
-    const result = await pool.query(
+    const result = await getPool().query(
       `SELECT
          t.id,
          t.community_id,
@@ -169,5 +190,7 @@ export async function getPendingTickets(
  * 关闭连接池（通常在进程退出前调用）。
  */
 export async function closePool(): Promise<void> {
-  await pool.end();
+  if (pool) {
+    await pool.end();
+  }
 }

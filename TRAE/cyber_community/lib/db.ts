@@ -7,12 +7,31 @@ export function getPool(): Pool {
   if (!pool) {
     const url = process.env.DATABASE_URL
     if (!url) {
-      throw new Error('DATABASE_URL 未设置')
+      throw new Error('DATABASE_URL 未设置。请在 .env.local 中配置 DATABASE_URL')
     }
+
+    // 清理 URL 中 node-postgres 不直接支持的 libpq 参数，避免冲突
+    const cleanUrl = url.replace(/[?&]sslmode=\w+/, '').replace(/\?$/, '')
+
+    const isRemote = cleanUrl.includes('supabase') || cleanUrl.includes('.co')
+
     pool = new Pool({
-      connectionString: url,
+      connectionString: cleanUrl,
       max: 10,
       idleTimeoutMillis: 30_000,
+      ...(isRemote
+        ? {
+            ssl: {
+              rejectUnauthorized: false,
+            },
+          }
+        : {}),
+    })
+
+    // 连接错误时清理 pool 以便下次重试
+    pool.on('error', (err) => {
+      console.error('[db] 数据库连接池错误:', err.message)
+      pool = null as unknown as Pool
     })
   }
   return pool
